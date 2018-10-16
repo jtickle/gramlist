@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+#
+# gramlist - Formats input as a grammatical list
+# Copyright (C) 2018 Jeffrey W. Tickle
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+CONJ='and'
+OXFORD=", "
+
+# Use this to show people how to use it
+function usage {
+  cat <<USAGE
+Usage: $0 [-h|--help] [-o] [conj]
+
+  -o    Omit the Oxford Comma
+  conj  Specify conjunction (default: 'and')
+USAGE
+}
+
+# Get next non-blank token from input
+# Trim whitespace from beginning and end; and limit to one whitespace between each word
+# Return 1 on EOF like 'read'
+function nextoken {
+  VAR=$1
+  EOF=0
+  TOKEN=""
+
+  # While TOKEN is empty string
+  while [ "x$TOKEN" == x ]; do
+    read TOKEN
+    if [ $? -ne 0 ]; then
+      return 1
+      break
+    fi
+    # That's right, no sed or anything needed to fix whitespace in this case.  Just echo it unquoted.
+    TOKEN=$(echo $TOKEN)
+  done
+  # Declare global variable named whatever user specified
+  declare -g "${VAR}=$TOKEN"
+}
+
+# Process command line args
+while [ $# -gt 0 ]; do
+  case $1 in
+    -o)         OXFORD=" "; shift;;
+    -h|--help)  usage; exit;;
+    *)          CONJ=$1; shift;;
+  esac
+done
+
+# Special Case - No Input
+# Grab the first non-empty item.  If it's EOF, do nothing and exit.
+nextoken FIRST
+if [ $? -ne 0 ]; then
+  exit
+fi
+
+# Special Case - One Input
+# Grab the second non-empty item.  If it's EOF, print the first item and exit.
+nextoken SECOND
+if [ $? -ne 0 ]; then
+  echo $FIRST
+  exit
+fi
+
+# Special Case - Two Inputs
+# Grab the third non-empty item.  If it's EOF, print what we have, Oxford comma does not apply.
+nextoken PREV
+if [ $? -ne 0 ]; then
+  echo "$FIRST $CONJ $SECOND"
+  exit
+fi
+
+# Store the first two items as a result.  We don't echo immediately so
+# that the program can be used with tty as stdin.
+RESULT="$FIRST, $SECOND"
+
+# General Case - 3-N Inputs
+# For each non-empty item, add previous item to result with a comma.  Store the current as previous.
+while nextoken NEXT; do
+  RESULT="$RESULT, $PREV"
+  PREV="$NEXT"
+done
+
+# When the new item is EOF, deal with the Oxford comma option.
+RESULT="$RESULT$OXFORD$CONJ $PREV"
+
+# Print the result at the end so that the user can have a tty on stdin.
+echo $RESULT
