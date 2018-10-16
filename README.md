@@ -1,4 +1,4 @@
-I couldn't find something like this already in the GNU set of utilities.
+I couldn't find something like this already.
 
 There is probably a fancier way to do it with sed or awk or something, but
 this got the job done for me.
